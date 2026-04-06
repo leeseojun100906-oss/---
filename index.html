@@ -178,17 +178,94 @@
   		animation: spinLogo 1.6s linear infinite;
 	}
 
-#loader.hide {
-  opacity: 0;
+		#loader.hide {
+		opacity: 0;
   visibility: hidden;
 }
 
-@keyframes spinLogo {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
+  @keyframes spinLogo {
+  	from {
+    	transform: rotate(0deg);
+   }
+ 	to {
     transform: rotate(360deg);
+  	}
+   }
+	  
+	header > * {
+  position: relative;
+  z-index: 1;
+}
+	  
+	  .hero-logo {
+  box-shadow: 0 0 70px rgba(255, 200, 100, 0.6);
+}
+	  .circle-text {
+  fill: #d8a15b;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  filter:
+    drop-shadow(0 0 2px rgba(216, 161, 91, 0.9))
+    drop-shadow(0 0 6px rgba(216, 161, 91, 0.8))
+    drop-shadow(0 0 12px rgba(216, 161, 91, 0.6));
+}
+	  header {
+  position: relative;
+  padding: 50px 20px 70px;
+  text-align: center;
+  overflow: hidden;
+}
+
+header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("NESHRMRHC.png") center/cover no-repeat;
+  filter: brightness(0.6);
+  transform: scale(1.03);
+  z-index: 0;
+}
+
+#particles {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+}
+	  .particle {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  background: rgba(255, 220, 140, 0.85);
+  box-shadow:
+    0 0 6px rgba(255, 220, 140, 0.8),
+    0 0 14px rgba(255, 220, 140, 0.45);
+  animation: floatParticle linear infinite;
+}
+
+@keyframes floatParticle {
+  0% {
+    transform: translateY(0px) translateX(0px);
+  }
+  25% {
+    transform: translateY(-12px) translateX(8px);
+  }
+  50% {
+    transform: translateY(-24px) translateX(-6px);
+  }
+  75% {
+    transform: translateY(-10px) translateX(10px);
+  }
+  100% {
+    transform: translateY(0px) translateX(0px);
   }
 }
   </style>
@@ -200,6 +277,9 @@
 	</div>
 	
   <header>
+  <div id="particles"></div>
+
+  <div class="hero-content">
     <div class="hero-logo-wrap">
       <svg viewBox="0 0 420 420" aria-hidden="true">
         <defs>
@@ -210,7 +290,7 @@
         </defs>
         <text class="circle-text">
           <textPath href="#textCircle" startOffset="25%" text-anchor="middle">
-            WELCOME TO NES
+            SAFETY • SERVICE • REPAIR
           </textPath>
         </text>
       </svg>
@@ -219,13 +299,12 @@
     </div>
 
     <p>
-      Welcome to the official community space of Noobic Engineering Service.
-      Join the server to connect with members, take part in activities, and stay updated with the community.
-    </p>
+      <em> Welcome to the official community space of Noobic Engineering Service.
+    Join the server to connect with members, take part in activities, and stay updated with the community. </em> </p>
 
     <a class="btn" href="https://discord.gg/warhzhw2" target="_blank">Join Server</a>
-  </header>
-
+  </div>
+</header>
   <section>
     <h2>About Us</h2>
     <div class="cards">
@@ -275,13 +354,31 @@
   <footer>
     <p>© 2026 Noobic Engineering Service</p>
   </footer>
-	<script>
-  	window.addEventListener("load", function () {
-    	const loader = document.getElementById("loader");
-    	setTimeout(function () {
-      	loader.classList.add("hide");
-    	}, 1200);
-  	});
-	</script>
+<script>
+window.addEventListener("load", function () {
+
+  // loader
+  const loader = document.getElementById("loader");
+  setTimeout(function () {
+    loader.classList.add("hide");
+  }, 2400);
+
+  // particles
+  const particles = document.getElementById("particles");
+
+  for (let i = 0; i < 30; i++) {
+    const p = document.createElement("span");
+    p.className = "particle";
+    p.style.left = Math.random() * 100 + "%";
+    p.style.top = Math.random() * 100 + "%";
+    p.style.animationDelay = (Math.random() * 6) + "s";
+    p.style.animationDuration = (4 + Math.random() * 5) + "s";
+    p.style.opacity = 0.2 + Math.random() * 0.5;
+    p.style.width = p.style.height = (2 + Math.random() * 4) + "px";
+    particles.appendChild(p);
+  }
+
+});
+</script>
 </body>
 </html>
