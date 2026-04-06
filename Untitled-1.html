@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Noobic Engineering Service</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      background: #0f172a;
+      color: white;
+      line-height: 1.6;
+    }
+
+    header {
+ 	position: relative;
+	padding: 50px 20px 70px;
+	text-align: center;
+	overflow: hidden;
+	}
+
+	header::before {
+ 	content: "";
+  	position: absolute;
+  	inset: 0;
+  	background: url("NESHRMRHC.png") center/cover no-repeat;
+  	filter: blur(4px) brightness(0.6);
+  	z-index: 0;
+	}
+
+    .hero-logo-wrap {
+      position: relative;
+      width: 420px;
+      height: 420px;
+      margin: 0 auto 30px;
+    }
+
+    .hero-logo-wrap svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .circle-text {
+      fill: white;
+      font-size: 28px;
+      font-weight: bold;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+    }
+
+    .hero-logo {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 250px;
+      height: 250px;
+      transform: translate(-50%, -50%);
+      object-fit: contain;
+      border-radius: 50%;
+      box-shadow: 0 0 25px rgba(0,0,0,0.35);
+    }
+
+    header p {
+      max-width: 750px;
+      margin: 0 auto 25px;
+      font-size: 1.08rem;
+      color: #e2e8f0;
+    }
+
+    .btn {
+      display: inline-block;
+      background: white;
+      color: #5865F2;
+      padding: 12px 22px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: bold;
+      transition: 0.2s;
+    }
+
+    .btn:hover {
+      transform: scale(1.05);
+      background: #e2e8f0;
+    }
+
+    section {
+      max-width: 1000px;
+      margin: 50px auto;
+      padding: 0 20px;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+      font-size: 2rem;
+      color: #93c5fd;
+      text-align: center;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: #1e293b;
+      padding: 20px;
+      border-radius: 14px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+    }
+
+    .card h3 {
+      margin-bottom: 10px;
+      color: #cbd5e1;
+    }
+
+    .rules, .channels {
+      background: #1e293b;
+      padding: 25px;
+      border-radius: 14px;
+    }
+
+    ul {
+      padding-left: 20px;
+    }
+
+    li {
+      margin-bottom: 10px;
+    }
+
+    footer {
+      text-align: center;
+      padding: 30px 20px;
+      color: #94a3b8;
+      border-top: 1px solid #334155;
+      margin-top: 40px;
+    }
+
+    @media (max-width: 500px) {
+      .hero-logo-wrap {
+        width: 300px;
+        height: 300px;
+      }
+
+      .hero-logo {
+        width: 180px;
+        height: 180px;
+      }
+
+      .circle-text {
+        font-size: 20px;
+        letter-spacing: 3px;
+      }
+    }
+	 #loader {
+  		position: fixed;
+  		inset: 0;
+  		background: #0f172a;
+  		display: flex;
+  		justify-content: center;
+  		align-items: center;
+  		z-index: 9999;
+  		transition: opacity 0.6s ease, visibility 0.6s ease;
+	}	
+
+	 .loader-logo {
+  		width: 170px;
+  		height: 170px;
+  		border-radius: 50%;
+  		animation: spinLogo 1.6s linear infinite;
+	}
+
+#loader.hide {
+  opacity: 0;
+  visibility: hidden;
+}
+
+@keyframes spinLogo {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+  </style>
+</head>
+<body>
+	
+    <div id="loader">
+  		<img src="nesLOGO.png" alt="Loading Logo" class="loader-logo">
+	</div>
+	
+  <header>
+    <div class="hero-logo-wrap">
+      <svg viewBox="0 0 420 420" aria-hidden="true">
+        <defs>
+          <path id="textCircle" d="M 210,210
+                                   m -165,0
+                                   a 165,165 0 1,1 330,0
+                                   a 165,165 0 1,1 -330,0"/>
+        </defs>
+        <text class="circle-text">
+          <textPath href="#textCircle" startOffset="25%" text-anchor="middle">
+            WELCOME TO NES
+          </textPath>
+        </text>
+      </svg>
+
+      <img src="nesLOGO.png" alt="Noobic Engineering Service Logo" class="hero-logo">
+    </div>
+
+    <p>
+      Welcome to the official community space of Noobic Engineering Service.
+      Join the server to connect with members, take part in activities, and stay updated with the community.
+    </p>
+
+    <a class="btn" href="https://discord.gg/warhzhw2" target="_blank">Join Server</a>
+  </header>
+
+  <section>
+    <h2>About Us</h2>
+    <div class="cards">
+      <div class="card">
+        <h3>Engineering Community</h3>
+        <p>A server centered around teamwork, activities, and community engagement.</p>
+      </div>
+      <div class="card">
+        <h3>Organized Channels</h3>
+        <p>Easy-to-use channels for announcements, discussions, and member interaction.</p>
+      </div>
+      <div class="card">
+        <h3>Events & Participation</h3>
+        <p>Take part in events, server operations, and community activities.</p>
+      </div>
+      <div class="card">
+        <h3>Friendly Environment</h3>
+        <p>A welcoming place for members to communicate and work together.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Main Channels</h2>
+    <div class="channels">
+      <ul>
+        <li><strong>#announcements</strong> : Important server news and updates</li>
+        <li><strong>#general</strong> : Main community chat</li>
+        <li><strong>#questions</strong> : Ask for help or information</li>
+        <li><strong>#events</strong> : Event details and participation info</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>Rules</h2>
+    <div class="rules">
+      <ul>
+        <li>Respect all members</li>
+        <li>No spam, harassment, or disruptive behavior</li>
+        <li>Keep content appropriate</li>
+        <li>Follow staff instructions</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <p>© 2026 Noobic Engineering Service</p>
+  </footer>
+	<script>
+  	window.addEventListener("load", function () {
+    	const loader = document.getElementById("loader");
+    	setTimeout(function () {
+      	loader.classList.add("hide");
+    	}, 1200);
+  	});
+	</script>
+</body>
+</html>
