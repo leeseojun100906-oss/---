@@ -8,8 +8,8 @@ const saltData={
 };
 // New reactive metals use the acid/water pathways only. Their common rank here
 // merely enables proton reduction; it is not a potential or water-speed ranking.
-const metalActivity={Li:7,Na:7,K:7,Rb:7,Cs:7,Fr:7,Ca:7,Sr:7,Ba:7,Mg:6,Zn:5,Fe:4,H:3,Cu:2,Ag:1};
-const metalValence={Li:1,Na:1,K:1,Rb:1,Cs:1,Fr:1,Ca:2,Sr:2,Ba:2,Mg:2,Zn:2,Fe:2,Cu:2,Ag:1};
+const metalActivity={Li:7,Na:7,K:7,Rb:7,Cs:7,Fr:7,Ca:7,Sr:7,Ba:7,Mg:6,Al:6.2,Mn:5.5,Zn:5,Fe:4,Co:3.8,Ni:3.6,Pb:3.3,H:3,Cu:2,Ag:1};
+const metalValence={Li:1,Na:1,K:1,Rb:1,Cs:1,Fr:1,Ca:2,Sr:2,Ba:2,Mg:2,Al:3,Mn:2,Zn:2,Fe:2,Co:2,Ni:2,Pb:2,Cu:2,Ag:1};
 function saltCharges(type,group){const s=saltData[type];if(!s)return;group[0].electrons=protonCount(s.metal)-s.q;for(const a of group.slice(1))a.electrons=protonCount(a.s)+1;}
 function solventMap(byId){
  const water=molecules.filter(m=>liquidSolvent(m,byId)).map(m=>byId.get(m.ids[0]));
@@ -29,13 +29,16 @@ function ionicChemistry(dt=.2){
   reactionLabel=m.type+' → 수용액 이온 (해리)';return false;
  });
  acidBaseChemistry(byId,wet);
+ oxideAcidChemistry(byId,wet);
+ networkRunRules(dt,true);
  const bonded=new Set(molecules.flatMap(m=>m.ids));
  const carriers=hydroniumCarriers(byId,wet);
  const free=atoms.filter(a=>!bonded.has(a.id)),bins=spatialBins([...free,...[...carriers.keys()].map(id=>byId.get(id))],22),used=new Set();
  for(const donor of free){
   const q=metalValence[donor.s];if(!q||charge(donor)!==0||!wet.has(donor.id)||used.has(donor.id))continue;
   const near=neighbors(donor,bins,22).filter(a=>!used.has(a.id)&&wet.has(a.id)&&Math.hypot(a.x-donor.x,a.y-donor.y)<22);
-  for(const target of ['H','Cu','Ag','Fe','Zn','Mg']){
+  for(const target of Object.keys(metalValence).filter(s=>!reactiveMetals[s]).concat('H')){
+   if(target==='H'&&networkOxidizingAcidNear(donor,byId,wet))continue;
    // In aqueous salts these metals react with the solvent. Do not infer direct
    // metal deposition from a reactivity list while ignoring the water pathway.
    if(reactiveMetals[donor.s]&&target!=='H')continue;
@@ -71,11 +74,11 @@ function ionicChemistry(dt=.2){
      molecules.push({type:'H2O',ids});releasedWater++;
     }
     molecules=molecules.filter(m=>!consumed.has(m));
-    molecules.push({type:'H2',ids:acceptors.map(a=>a.id)});acceptors.forEach(a=>bonded.add(a.id));discover('H2');
+    for(let i=0;i<acceptors.length;i+=2)molecules.push({type:'H2',ids:acceptors.slice(i,i+2).map(a=>a.id)});acceptors.forEach(a=>bonded.add(a.id));discover('H2');
    }
-   const donorLabel=(donorCount>1?donorCount:'')+donor.s;
-   reactionLabel=donorLabel+' + '+acceptors.length+target+'('+tq+'+) → '+donorLabel+'('+q+'+) + '+(target==='H'?'H₂':acceptors.length+target);
-   if(releasedWater)reactionLabel=donorLabel+' + '+releasedWater+'H₃O⁺'+(acceptors.length>releasedWater?' + '+(acceptors.length-releasedWater)+'H⁺':'')+' → '+donorLabel+'('+q+'+) + H₂ + '+releasedWater+'H₂O';
+   const donorLabel=(donorCount>1?donorCount:'')+donor.s,hydrogenLabel=(acceptors.length===2?'':acceptors.length/2)+'H₂';
+   reactionLabel=donorLabel+' + '+acceptors.length+target+'('+tq+'+) → '+donorLabel+'('+q+'+) + '+(target==='H'?hydrogenLabel:acceptors.length+target);
+   if(releasedWater)reactionLabel=donorLabel+' + '+releasedWater+'H₃O⁺'+(acceptors.length>releasedWater?' + '+(acceptors.length-releasedWater)+'H⁺':'')+' → '+donorLabel+'('+q+'+) + '+hydrogenLabel+' + '+releasedWater+'H₂O';
    record(reactionLabel+' · 산화·환원');break;
   }
  }

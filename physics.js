@@ -27,9 +27,11 @@ const chemicalProperties = {
   HCl: { dissociation: 4000, energy: 4.43 },
   HBr: { dissociation: 3500, energy: 3.76 }
 };
+// ICSC reference values (air): H2 560°C, CH4 537°C. Rounded game
+// induction references, not universal ignition thresholds for pure oxygen.
 const chemicalReactions = [
-  { inputs: ['H2', 'H2', 'O2'], outputs: ['H2O', 'H2O'], activation: 650, max: 3000, energy: 5.01, label: '2H₂ + O₂ → 2H₂O' },
-  { inputs: ['CH4', 'O2', 'O2'], outputs: ['CO2', 'H2O', 'H2O'], activation: 800, max: 1900, energy: 8.32, label: 'CH₄ + 2O₂ → CO₂ + 2H₂O' }
+  { inputs: ['H2', 'H2', 'O2'], outputs: ['H2O', 'H2O'], activation: 833, energy: 5.01, label: '2H₂ + O₂ → 2H₂O' },
+  { inputs: ['CH4', 'O2', 'O2'], outputs: ['CO2', 'H2O', 'H2O'], activation: 810, energy: 8.32, label: 'CH₄ + 2O₂ → CO₂ + 2H₂O' }
 ];
 let confinement = 1;
 let nuclearEnergy = 0;
@@ -152,7 +154,7 @@ function reactFusion() {
       products.push({ A:path.productA||defaultMass(path.product), electrons:retained, s: path.product, x: avg('x'), y: avg('y'), vx: avg('vx'), vy: avg('vy'), t: Math.min(3e9, avg('t') * 1.04) });
       nuclearEnergy += path.q;
       reactionLabel = path.label;
-      flashes.push({ x: a.x, y: a.y, life: 1, nuclear: true });
+      emitEnergyLight(avg('x'),avg('y'),path.q,{kind:'nuclear'});
       events++;
       break;
     }
@@ -173,72 +175,116 @@ function moleculeTemperature(m, byId) {
   return m.ids.reduce((sum, id) => sum + byId.get(id).t, 0) / m.ids.length;
 }
 
-function chemicalHeat(group, energy) {
+function chemicalHeat(group, energy, lightOptions = {}) {
   chemicalEnergy += energy;
+  if (energy > 0 && group.length) emitEnergyLight(group.reduce((s,a)=>s+a.x,0)/group.length,group.reduce((s,a)=>s+a.y,0)/group.length,energy,lightOptions);
   // A qualitative heat feedback. Display energy is logged separately in eV.
   const change = energy * 18 / group.length;
   for (const a of group) thermostat(a, Math.max(10, a.t + change));
 }
 
-function exchangeMolecules(byId) {
-  const used = new Set();
-  const formed = [];
-  const centers = molecules.map(m => ({ ...byId.get(m.ids[0]), molecule: m }));
-  const bins = spatialBins(centers, 35);
+// Effective display heat capacity: this is not an adiabatic flame-temperature
+// solver. Only explicit nearby particles receive heat; background air is not fuel.
+const COMBUSTION_HEAT_SCALE = 1800;
+function combustionHeat(group, energy, bins) {
+  const ids=new Set(group.map(a=>a.id));
+  const center={x:group.reduce((s,a)=>s+a.x,0)/group.length,y:group.reduce((s,a)=>s+a.y,0)/group.length};
+  const nearby=neighbors(center,bins,48).filter(a=>!ids.has(a.id)&&Math.hypot(a.x-center.x,a.y-center.y)<48);
+  const weights=nearby.map(a=>Math.max(.01,1-Math.hypot(a.x-center.x,a.y-center.y)/48));
+  const totalWeight=weights.reduce((s,w)=>s+w,0),share=nearby.length?.35:0;
+  const mixedTemperature=group.reduce((s,a)=>s+a.t,0)/group.length;
+  chemicalEnergy+=energy;
+  emitEnergyLight(center.x,center.y,energy,{kind:'combustion',violence:1.25});
+  for(const a of group)thermostat(a,mixedTemperature+energy*COMBUSTION_HEAT_SCALE*(1-share)/group.length);
+  nearby.forEach((a,i)=>thermostat(a,a.t+energy*COMBUSTION_HEAT_SCALE*share*weights[i]/totalWeight));
+}
+
+function exchangeMolecules(byId, dt = .2) {
+  const used = new Set(), formed = [];
+  const centers = molecules.map(m => ({x:m.ids.reduce((s,id)=>s+byId.get(id).x,0)/m.ids.length,y:m.ids.reduce((s,id)=>s+byId.get(id).y,0)/m.ids.length,molecule:m}));
+  const bins = spatialBins(centers,35);
+  let heatBins=null,events=0;
   for (const center of centers) {
     const first = center.molecule;
     if (used.has(first)) continue;
-    const nearby = neighbors(center, bins, 35).filter(b => Math.hypot(center.x - b.x, center.y - b.y) < 35);
-    for (const reaction of chemicalReactions) {
-      const t = moleculeTemperature(first, byId);
-      if (first.type !== reaction.inputs[0] || t < reaction.activation || t > reaction.max) continue;
-      const group = [first];
-      for (const type of reaction.inputs.slice(1)) {
-        const next = nearby.find(b => b.molecule.type === type && !used.has(b.molecule) && !group.includes(b.molecule));
-        if (!next) break;
-        group.push(next.molecule);
-      }
-      if (group.length !== reaction.inputs.length) continue;
-      const pool = group.flatMap(m => m.ids.map(id => byId.get(id)));
-      const available = [...pool];
-      for (const type of reaction.outputs) {
-        const recipe = recipes.find(r => r.id === type);
-        const ids = recipe.atoms.map(symbol => {
-          const index = available.findIndex(a => a.s === symbol);
-          return available.splice(index, 1)[0].id;
-        });
-        formed.push({ type, ids });
-        discover(type);
-      }
-      group.forEach(m => used.add(m));
-      chemicalHeat(pool, reaction.energy);
-      reactionLabel = reaction.label;
-      flashes.push({ x: center.x, y: center.y, life: .5, nuclear: false });
-      break;
+    const reaction = chemicalReactions.find(r=>r.inputs[0]===first.type);
+    if (!reaction) continue;
+    const nearby = neighbors(center,bins,35).filter(b=>Math.hypot(center.x-b.x,center.y-b.y)<35)
+      .sort((a,b)=>Math.hypot(a.x-center.x,a.y-center.y)-Math.hypot(b.x-center.x,b.y-center.y));
+    const group=[first];
+    for (const type of reaction.inputs.slice(1)) {
+      const next=nearby.find(b=>b.molecule.type===type&&!used.has(b.molecule)&&!group.includes(b.molecule));
+      if(!next)break;
+      group.push(next.molecule);
     }
+    if(group.length!==reaction.inputs.length){first.ignitionProgress=0;continue;}
+    const pool=group.flatMap(m=>m.ids.map(id=>byId.get(id)));
+    const mixedTemperature=pool.reduce((s,a)=>s+a.t,0)/pool.length;
+    if(mixedTemperature<reaction.activation || group.some(m=>classifyPhase(m.type,moleculeTemperature(m,byId))!=='gas')){
+      first.ignitionProgress=0;continue;
+    }
+    // A finite induction time at the reference temperature; hotter mixtures
+    // react faster. Do not impose an upper-temperature ban on combustion.
+    const rate=Math.min(40,Math.exp((mixedTemperature-reaction.activation)/180));
+    const progress=Number.isFinite(first.ignitionProgress)?Math.max(0,Math.min(1,first.ignitionProgress)):0;
+    first.ignitionProgress=progress+Math.max(0,Math.min(.5,dt))*rate;
+    if(first.ignitionProgress<1-1e-9)continue;
+    const available=[...pool];
+    for (const type of reaction.outputs) {
+      const recipe=recipes.find(r=>r.id===type);
+      const ids=recipe.atoms.map(symbol=>available.splice(available.findIndex(a=>a.s===symbol),1)[0].id);
+      formed.push({type,ids});discover(type);
+    }
+    group.forEach(m=>used.add(m));
+    if(!heatBins)heatBins=spatialBins(atoms,48);
+    combustionHeat(pool,reaction.energy,heatBins);
+    reactionLabel=reaction.label+' · 연소';events++;
   }
-  molecules = molecules.filter(m => !used.has(m)).concat(formed);
+  molecules=molecules.filter(m=>!used.has(m)).concat(formed);
+  if(events)record(reactionLabel+' · '+events+'회');
 }
 
-function chemistry() {
+function chemistry(dt = .2) {
   const byId = new Map(atoms.map(a => [a.id, a]));
+  // First invalidate inconsistent bonds, then compete for the actual fuel and
+  // oxidizer before thermal decomposition. Atom IDs and electrons are reused.
+  molecules=molecules.filter(m=>{
+    if(!m.ids.every(id=>byId.has(id)))return false;
+    if(acidBasePattern(m.type))return validAcidBase(m,byId);
+    if(oxideData[m.type])return validOxide(m,byId);
+    if(networkSpecies[m.type])return validNetwork(m,byId);
+    if(saltData[m.type])return m.ids.every((id,i)=>charge(byId.get(id))===(i===0?saltData[m.type].q:-1));
+    return m.ids.every(id=>charge(byId.get(id))===0);
+  });
+  networkRunRules(dt,false);
+  exchangeMolecules(byId,dt);
+  elementalOxidation(byId,dt);
   molecules = molecules.filter(m => {
-    if(acidBasePattern(m.type))return validAcidBase(m,byId) && moleculeTemperature(m,byId)<(baseData[m.type]?.gate||1800);
-    if(saltData[m.type])return m.ids.every((id,i)=>charge(byId.get(id))===(i===0?saltData[m.type].q:-1)) && moleculeTemperature(m,byId)<saltData[m.type].melt;
-    if(m.ids.some(id=>charge(byId.get(id))!==0))return false;
+    if(acidBasePattern(m.type)){
+      if(networkRuleIndex.get(m.type)?.some(r=>r.family==='열분해'))return true;
+      return moleculeTemperature(m,byId)<(baseData[m.type]?.gate||1800);
+    }
+    if(saltData[m.type])return moleculeTemperature(m,byId)<saltData[m.type].melt;
     const property = chemicalProperties[m.type];
-    if (moleculeTemperature(m, byId) < property.dissociation) return true;
-    chemicalHeat(m.ids.map(id => byId.get(id)), -property.energy);
+    if(!property)return !!oxideData[m.type]||!!networkSpecies[m.type]; // High-temperature oxide equilibrium is not modeled.
+    const t=moleculeTemperature(m,byId);
+    if(t<property.dissociation){m.thermalDose=0;return true;}
+    // A reduced residence-time model avoids deleting every molecule at one
+    // exact temperature. It does not implement radical chemistry/equilibrium.
+    const rate=Math.min(40,.5*Math.exp(Math.min(7,6*(t/property.dissociation-1))));
+    const dose=Number.isFinite(m.thermalDose)?Math.max(0,Math.min(1,m.thermalDose)):0;
+    m.thermalDose=dose+Math.max(0,Math.min(.5,dt))*rate;
+    if(m.thermalDose<1-1e-9)return true;
+    chemicalHeat(m.ids.map(id=>byId.get(id)),-property.energy);
     return false;
   });
-  exchangeMolecules(byId);
   const bonded = new Set(molecules.flatMap(m => m.ids));
   const bins = spatialBins(atoms.filter(a => !bonded.has(a.id)), 20);
   for (const a of atoms) {
     if (bonded.has(a.id) || charge(a)!==0 || a.t > 9000) continue;
     const near = neighbors(a, bins, 20);
     for (const recipe of recipes) {
-      if(recipe.ionic)continue;
+      if(recipe.ionic||recipe.reactionOnly)continue;
       const property = chemicalProperties[recipe.id];
       if (recipe.atoms[0] !== a.s || a.t >= property.dissociation * .75) continue;
       const group = [a];
@@ -259,6 +305,7 @@ function chemistry() {
 
 function step(dt) {
   const phaseAtoms=updatePhases();
+  updateElectricalHeating(dt);
   applyElectricForces(dt);
   aqueousMotion(dt);
   applyGravityAndBuoyancy(dt,phaseAtoms);
@@ -306,7 +353,7 @@ function step(dt) {
   }
   nuclearClock += dt;
   chemistryClock += dt;
-  if (chemistryClock >= .2) { chemistryClock = 0; ionicChemistry(); ionizationStep(); chemistry(); updatePhases(); }
+  if (chemistryClock >= .2) { const elapsed=chemistryClock;chemistryClock = 0; ionicChemistry(elapsed); ionizationStep(); chemistry(elapsed); updatePhases(); }
   if (nuclearClock >= .5) { nuclearClock = 0; reactFusion(); }
   flashes = flashes.filter(f => (f.life -= dt) > 0);
 }
@@ -331,21 +378,18 @@ function physicsOverlay() {
   ctx.setLineDash([6 / zoom, 6 / zoom]);
   ctx.strokeRect(box.left, box.top, box.right - box.left, box.bottom - box.top);
   ctx.setLineDash([]);
-  for (const f of flashes) {
-    ctx.strokeStyle = f.nuclear ? '#ffe5a2' : '#ff986d';
-    ctx.globalAlpha = Math.min(1, f.life);
-    ctx.beginPath();
-    ctx.arc(f.x, f.y, 8 + (1 - f.life) * 25, 0, Math.PI * 2);
-    ctx.stroke();
-  }
+
   ctx.globalAlpha = 1;
 }
 
 function updatePhysicsStats() {
   const average = atoms.length ? atoms.reduce((sum, a) => sum + a.t, 0) / atoms.length : temperature;
   $('averageTemp').textContent = average >= 1e6 ? (average / 1e6).toFixed(1) + ' MK' : Math.round(average).toLocaleString() + ' K';
+  $('averageTempCelsius').textContent = celsiusLabel(average);
   $('energy').textContent = nuclearEnergy.toFixed(2) + ' MeV';
   $('chemicalEnergy').textContent = chemicalEnergy.toFixed(2) + ' eV';
+  $('electricalEnergy').textContent = electricalEnergy.toFixed(1) + ' 단위';
+  $('currentStatus').textContent = paused ? '일시정지 · 통전 멈춤' : electricalPower > 0 ? '통전 중 · 저항열 발생' : '금속 위를 누르고 있으면 가열';
   $('reaction').textContent = reactionLabel;
   $('density').textContent = densityPeak + ' / 반경 32';
 }

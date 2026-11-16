@@ -55,8 +55,8 @@ function reactiveMetalWater(byId,dt=.2){
   donors.forEach((donor,i)=>formed.push({type:data.hydroxide,ids:[donor.id,...oh.slice(i*data.q,(i+1)*data.q).flat()]}));
   formed.push({type:'H2',ids:hydrogen});
   const products=[...donors,...waters.flatMap(w=>w.m.ids.map(id=>byId.get(id)))];
-  products.forEach(a=>a.aqueous=false);chemicalHeat(products,data.heat);
-  flashes.push({x:a.x,y:a.y,life:data.flash,nuclear:false});
+  products.forEach(a=>a.aqueous=false);chemicalHeat(products,data.heat,{symbol:a.s,violence:Math.max(.4,data.rate*.45)});
+
   discover(data.hydroxide);discover('H2');
   reactionLabel=(needed===2?'2':'')+a.s+' + 2H₂O → '+(needed===2?'2':'')+data.hydroxide+' + H₂ · 발열'+(data.predicted?' (예측)':'');
   reactions.set(reactionLabel,(reactions.get(reactionLabel)||0)+1);

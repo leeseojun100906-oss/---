@@ -14,6 +14,7 @@ const baseData={
  'Ba(OH)2':{name:'수산화 바륨',metal:'Ba',count:2,gate:681}
 };
 function acidBasePattern(type){
+ if(networkPolyion(type)&&type!=='OH-')return networkSpecies[type].pattern;
  if(type==='OH-')return [-1,0];
  // Localized electron bookkeeping: the fourth atom is the added proton.
  // This is not a calculation of the molecule's electron-density distribution.
@@ -29,7 +30,7 @@ function validAcidBase(m,byId){
  const pattern=acidBasePattern(m.type);
  return pattern&&m.ids.length===pattern.length&&m.ids.every((id,i)=>byId.has(id)&&charge(byId.get(id))===pattern[i]);
 }
-function isPolyatomicIon(type){return type==='OH-'||type==='H3O+';}
+function isPolyatomicIon(type){return type==='OH-'||type==='H3O+'||networkPolyion(type);}
 function liquidSolvent(m,byId){
  return (m.type==='H2O'||(m.type==='H3O+'&&validAcidBase(m,byId)))&&moleculeTemperature(m,byId)>=273.15&&moleculeTemperature(m,byId)<373.15;
 }
@@ -91,7 +92,7 @@ function acidBaseChemistry(byId,wet){
    water.push({type:'H2O',ids:solventIds});consumed.add(carrier);products.push(...solventIds);hydrated++;
   }
   chemicalHeat(products.map(id=>byId.get(id)),.59);
-  flashes.push({x:o.x,y:o.y,life:.5,nuclear:false});neutralized++;
+  neutralized++;
  }
  if(neutralized){
   molecules=molecules.filter(m=>!consumed.has(m)).concat(water);discover('H2O');
@@ -130,5 +131,5 @@ function acidBaseStats(){
  const s=acidBaseSample();
  $('acidStats').textContent='전체 용액 · '+acidBaseCounts(s);
  $('acidState').textContent=s.label;
- $('acidState').style.color=s.h&&s.oh?'#efc27d':s.h?'#f29c88':s.oh?'#bea4ef':'#b9eb8c';
+ $('acidState').style.color=s.h&&s.oh?'#8a5e20':s.h?'#a74932':s.oh?'#725087':'#506c38';
 }

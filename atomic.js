@@ -29,6 +29,7 @@ function normalizeAtom(a) {
 }
 function updateAtomicControls() {
   reactiveMetalHint();
+  updateSelectionDisplay();
   const isElement = symbols.includes(selected);
   const menu = $('isotope');
   menu.replaceChildren();
@@ -43,7 +44,7 @@ function updateAtomicControls() {
   $('spawnCharge').disabled = !isElement;
   $('spawnCharge').max = isElement ? protonCount(selected) : 0;
   $('spawnCharge').value = 0;
-  $('atomicSelection').textContent = isElement ? '양성자 ' + protonCount(selected) + ' · 중성자 ' + (defaultMass(selected) - protonCount(selected)) : ((saltData[selected]||baseData[selected])?'이온결정은 양·음이온을 전하 중성 비율로 소환':selected==='OH-'?'O-H 결합과 총 전하 −1로 소환':selected==='H3O+'?'O 1개·H 3개 결합과 총 전하 +1로 소환':'분자는 기본 동위원소·중성 상태로 소환');
+  $('atomicSelection').textContent = isElement ? '양성자 ' + protonCount(selected) + ' · 중성자 ' + (defaultMass(selected) - protonCount(selected)) : ((saltData[selected]||baseData[selected]||networkSpecies[selected]?.pattern.some(q=>q!==0))?'이온결정은 양·음이온을 전하 중성 비율로 소환':selected==='OH-'?'O-H 결합과 총 전하 −1로 소환':selected==='H3O+'?'O 1개·H 3개 결합과 총 전하 +1로 소환':'분자는 기본 동위원소·중성 상태로 소환');
 }
 function setDeveloperMode(enabled) {
   developerMode = enabled;
@@ -80,7 +81,7 @@ function transferElectron(a, remove) {
   return true;
 }
 function ionizationStep() {
-  const protectedIons=new Set(molecules.filter(m=>saltData[m.type]||acidBasePattern(m.type)).flatMap(m=>m.ids));
+  const protectedIons=new Set(molecules.filter(m=>saltData[m.type]||acidBasePattern(m.type)||oxideData[m.type]||networkSpecies[m.type]).flatMap(m=>m.ids));
   for (const a of atoms) {
     const q = charge(a);
     // Reduced threshold model. Higher ionization stages use an approximate scaling.

@@ -23,6 +23,8 @@ let phaseView = false;
 
 function classifyPhase(material, t) {
   if(isPolyatomicIon(material))return 'plasma';
+  const oxide=oxidePhase(material,t);if(oxide)return oxide;
+  const network=networkPhase(material,t);if(network)return network;
   // Free neutral atoms of these normally molecular gases are treated as gas
   // until a molecule forms; their molecular recipes have their own phase data.
   if(['H','N','O','F','Cl'].includes(material))return 'gas';
